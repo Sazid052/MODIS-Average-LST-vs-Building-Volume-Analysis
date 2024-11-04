@@ -16,7 +16,7 @@ The script performs several key tasks:
    - Option to switch between Dhaka BMD and Mymensingh BMD points.
 
 2. **MODIS LST Analysis**:
-   - Imports *MODIS Terra LST* data, focusing on nighttime temperatures in March from 2018 to 2019.
+   - Imports *MODIS Terra LST* data, focusing on nighttime temperatures in March 2018.
    - Converts LST from Kelvin to Celsius and clips the data to the specified ROI.
    - Computes and prints the minimum, maximum, and average LST values.
 
@@ -39,11 +39,15 @@ The script performs several key tasks:
    - Import the script into your Google Earth Engine Code Editor.
    - Ensure that the *Dhaka City boundary* and *Microsoft Buildings dataset* are correctly referenced.
 
-2. **Adjust Parameters**:
+2. **Modify the Region of Interest (ROI)**:
+   - The `roi` variable is set to a specific region in Dhaka City by default. To analyze a different region, change the `roi` variable to the appropriate `FeatureCollection` asset.
+   - *Note*: Make sure that the selected `roi` is suitable for your analysis and that you have uploaded the necessary assets to your GEE account.
+
+3. **Adjust Parameters**:
    - Modify the ROI to suit your area of interest. Available options include `Dhaka Core`, `Dhaka Surroundings`, `Dhaka City Buffer`, and various blocks.
    - To switch between day and night LST data, change the `.select()` method accordingly.
 
-3. **Run the Analysis**:
+4. **Run the Analysis**:
    - Visualize the LST and building density on the map.
    - Export the clipped LST image to Google Drive for further analysis.
    - View the minimum, maximum, and average LST values in the Console.
