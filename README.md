@@ -86,8 +86,7 @@ The script performs several key tasks:
 
 ## Resources
 
-- [Google Earth Engine Documentation](https://developers.google.com/earth-engine)
-- [MODIS Land Surface Temperature (LST) Data](https://lpdaac.usgs.gov/products/mod11a1v061/)
-- [Microsoft Building Footprints](https://github.com/microsoft/GlobalMLBuildingFootprints)
+- [MODIS Land Surface Temperature (LST) Data](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD11A1)
+- [Microsoft Building Footprints](https://gee-community-catalog.org/projects/msbuildings/)
 
 Feel free to modify the code and parameters to suit your research needs. If you encounter any issues, consult the Google Earth Engine community or relevant documentation.
