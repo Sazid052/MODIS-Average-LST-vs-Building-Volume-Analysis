@@ -1,0 +1,215 @@
+//////////////////////////////////////////////////////////////////////////////////////
+// MODIS LST
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+//Study Area
+var BMD_location = ee.Geometry.Point([90.3783, 23.7799]); // Dhaka BMD
+// var BMD_location = ee.Geometry.Point([90.426291,  24.725688]); // Mymensingh BMD
+
+// var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_Core'); // Dhaka Core
+// var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_Surroundings'); // Dhaka City - Dhaka Core
+var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_City_Dissolved'); // Dhaka City
+// var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_City_Buffer_3_5km'); // Dhaka City Buffer
+// var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/UHII_Blocks/1_Block_W'); // Dhaka Blocks
+
+// 1_Block_N, 1_Block_S, 1_Block_E, 1_Block_W, 1_Block_S_E, 1_Block_Rustompur, 1_Block_Purbachal
+
+
+//Import the LST image collection
+var modis = ee.ImageCollection("MODIS/061/MOD11A1") // Terra 10:30 am (day), 10:30 pm (night)
+// var modis = ee.ImageCollection("MODIS/061/MYD11A1") // Aqua 01:30 am (night), 01:30 pm (day)
+.filter(ee.Filter.calendarRange(3, 3, 'month')) //ee.Filter.calendarRange(start, end, field) Selects Data of March only
+.filterDate("2018-01-01","2019-01-01")
+// .select('LST_Day_1km') //for day time
+.select('LST_Night_1km') //for night time
+// .select('Day_view_time')
+// .select('Night_view_time')
+
+
+// Visualization parametersb
+var imageVisParam = {
+  // bands: ["LST_Day_1km"],
+  bands: ["LST_Night_1km"],
+  min: 20,
+  max: 50,
+  palette: ["12a418", "4bff37", "faff2e", "ffac2c", "ff1d10"],
+  opacity: 1
+};
+
+// kelvin to celcius
+var modcel = modis.map(function(img){
+  return img
+  .multiply(0.02)
+  .subtract(273.15)
+  .copyProperties(img, ['system:time_start'])
+})
+
+Map.setOptions('SATELLITE');
+Map.centerObject(BMD_location, 11);
+
+
+// Clip the image using roi
+var LST_clipped = modcel.mean().clip(roi);
+// // Clip the image using Mymensingh_area
+// var LST_clipped = modcel.mean().clip(Mymensingh_area);
+
+// Print minimum, maximum, and average values
+var statistics = LST_clipped.reduceRegion({
+  reducer: ee.Reducer.minMax().combine({
+    reducer2: ee.Reducer.mean(),
+    sharedInputs: true
+  }),
+  geometry: roi,
+  // geometry: Mymensingh_area,
+  scale: 1000
+});
+
+// print('Minimum LST value:', statistics.get('LST_Day_1km_min'));
+// print('Maximum LST value:', statistics.get('LST_Day_1km_max'));
+// print('Average LST value:', statistics.get('LST_Day_1km_mean'));
+print('Minimum LST value:', statistics.get('LST_Night_1km_min'));
+print('Maximum LST value:', statistics.get('LST_Night_1km_max'));
+print('Average LST value:', statistics.get('LST_Night_1km_mean'));
+
+
+
+Map.addLayer(LST_clipped, imageVisParam, 'LST Clipped');
+// Map.addLayer(BMD_location, {color: 'red'}, 'BMD Location');
+
+// Export the clipped LST image to Google Drive
+Export.image.toDrive({
+  image: LST_clipped,
+  description: 'MODIS_LST_Clipped_Dhaka_2000_to 2024_March_1030pm',
+  // description: 'MODIS_LST_Clipped_Mymensingh_2023_March',
+  scale: 1000, // Set the scale according to your needs
+  region: roi,
+  // region: Mymensingh_area,
+  folder: 'LST_MODIS', // Set the folder in your Google Drive where you want to export the image
+  fileNamePrefix: 'MODIS_LST_Clipped_Dhaka_2000_to 2024_March_1030pm',
+  // fileNamePrefix: 'MODIS_LST_Clipped_Mymensingh_2023_March',
+  maxPixels: 1e13
+});
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Building Density
+//////////////////////////////////////////////////////////////////////////////////////
+
+// https://gee-community-catalog.org/projects/msbuildings/
+
+// Load the MS Buildings dataset for Bangladesh
+var msBuildings = ee.FeatureCollection('projects/sat-io/open-datasets/MSBuildings/Bangladesh');
+
+// Load the Dhaka City boundary feature collection
+var dhakaBoundary = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_City_Dissolved');
+
+// Clip the buildings data to the Dhaka City boundary
+var dhakaBuildings = msBuildings.filterBounds(dhakaBoundary);
+
+// Center the map on Dhaka and add the clipped buildings layer
+Map.centerObject(dhakaBoundary, 11);
+Map.addLayer(dhakaBuildings.style({fillColor: '00000000', color: 'FF5500'}), {}, 'Dhaka Buildings');
+
+// Add a new property 'presence' to each feature with a value of 1
+var dhakaBuildingsWithPresence = dhakaBuildings.map(function(feature) {
+  return feature.set('presence', 1);
+});
+
+// Create a binary raster from the buildings feature collection
+var binaryBuildingRaster = dhakaBuildingsWithPresence
+  .reduceToImage({
+    properties: ['presence'], // Use the new property 'presence'
+    reducer: ee.Reducer.sum() // Sums the presence values to get a count per pixel
+  })
+  .gt(0) // Convert count to binary (1 for presence, 0 for absence)
+
+// Clip the binary raster to the Dhaka City boundary
+var clippedBinaryBuildingRaster = binaryBuildingRaster.clip(dhakaBoundary);
+print('Clipped Binary Building Raster:', clippedBinaryBuildingRaster);
+
+// // Add the binary raster layer to the map
+// Map.addLayer(clippedBinaryBuildingRaster, {min: 0, max: 1, palette: ['white', 'red']}, 'Binary Building Raster');
+
+// Resample to x-meter resolution
+var resampledRaster = clippedBinaryBuildingRaster.reproject({
+  crs: 'EPSG:4326', // Change to your desired projection if needed
+  scale: 5 // resolution in meter
+});
+
+// Define a kernel for summing 3 pixels around each pixel
+var kernel = ee.Kernel.square({radius: 3, units: 'pixels', normalize: false});
+
+// Calculate the sum of kernel pixels to generate building density
+var buildingDensity = resampledRaster.reduceNeighborhood({
+  reducer: ee.Reducer.sum(), // Sum values within the kernel
+  kernel: kernel
+}).rename('building_density');
+
+// Resample to 100-meter resolution
+var finalBuildingDensityRaster = buildingDensity.reproject({
+  crs: 'EPSG:4326',
+  scale: 100 // 100-meter resolution
+});
+
+// Add the building density raster to the map
+Map.addLayer(finalBuildingDensityRaster, {min: 0, max: 47, palette: ['white', 'red']}, 'Building Density Raster');
+
+// Calculate the minimum and maximum values of the finalBuildingDensityRaster
+var stats = finalBuildingDensityRaster.reduceRegion({
+  reducer: ee.Reducer.minMax(),
+  geometry: roi,
+  scale: 100, // Match the resolution of the final raster
+  maxPixels: 1e13
+});
+
+// Print the minimum and maximum values
+print('Minimum and Maximum Building Density:', stats);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Correlation between LST and Building Density
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+// Add both LST and Building Density rasters as bands to sample together
+var lstAndDensity = LST_clipped.addBands(finalBuildingDensityRaster);
+
+// Sample points within the region of interest (roi)
+var samples = lstAndDensity.sample({
+  region: roi,
+  scale: 100, // Set scale to match LST and building density resolution
+  numPixels: 1000, // Specify number of samples; adjust as needed for accuracy
+  geometries: true // Include geometry for visualization
+});
+
+// Filter out samples where building density is less than a certain threshold if needed
+var filteredSamples = samples.filter(ee.Filter.gte('building_density', 1));
+
+// Print filtered sample results
+print(filteredSamples, "Filtered Sampled LST and Building Density");
+
+// Calculate Pearson's correlation between LST and building density
+var sampleData = filteredSamples.reduceColumns({
+  reducer: ee.Reducer.pearsonsCorrelation(),
+  // selectors: ['LST_Day_1km', 'building_density']
+  selectors: ['LST_Night_1km', 'building_density']
+});
+
+// Print the correlation result
+print('Correlation between LST and building density:', sampleData.get('correlation'));
+
+// Generate a scatter plot of Building Density (x-axis) vs. LST (y-axis)
+// var chart = ui.Chart.feature.byFeature(filteredSamples, 'building_density', 'LST_Day_1km')
+var chart = ui.Chart.feature.byFeature(filteredSamples, 'building_density', 'LST_Night_1km')
+  .setChartType('ScatterChart')
+  .setOptions({
+    title: 'Correlation between LST and Building Density',
+    hAxis: {title: 'Building Density'},
+    vAxis: {title: 'Land Surface Temperature (°C)'},
+    pointSize: 3,
+    trendlines: { 0: {showR2: true, visibleInLegend: true} }
+  });
+
+// Display the chart in the Console
+print(chart);
+
