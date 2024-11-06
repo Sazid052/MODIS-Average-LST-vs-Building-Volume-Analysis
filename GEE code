@@ -20,7 +20,7 @@ var roi = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_City_Dissolve
 var modis = ee.ImageCollection("MODIS/061/MOD11A1") // Terra 10:30 am (day), 10:30 pm (night)
 // var modis = ee.ImageCollection("MODIS/061/MYD11A1") // Aqua 01:30 am (night), 01:30 pm (day)
 .filter(ee.Filter.calendarRange(3, 3, 'month')) //ee.Filter.calendarRange(start, end, field) Selects Data of March only
-.filterDate("2018-01-01","2019-01-01")
+.filterDate("2020-01-01","2021-01-01")
 // .select('LST_Day_1km') //for day time
 .select('LST_Night_1km') //for night time
 // .select('Day_view_time')
@@ -80,131 +80,119 @@ Map.addLayer(LST_clipped, imageVisParam, 'LST Clipped');
 // Export the clipped LST image to Google Drive
 Export.image.toDrive({
   image: LST_clipped,
-  description: 'MODIS_LST_Clipped_Dhaka_2000_to 2024_March_1030pm',
+  description: 'MODIS_LST_Clipped_Dhaka_2020_March_1030pm',
   // description: 'MODIS_LST_Clipped_Mymensingh_2023_March',
   scale: 1000, // Set the scale according to your needs
   region: roi,
   // region: Mymensingh_area,
   folder: 'LST_MODIS', // Set the folder in your Google Drive where you want to export the image
-  fileNamePrefix: 'MODIS_LST_Clipped_Dhaka_2000_to 2024_March_1030pm',
+  fileNamePrefix: 'MODIS_LST_Clipped_Dhaka_2020_March_1030pm',
   // fileNamePrefix: 'MODIS_LST_Clipped_Mymensingh_2023_March',
   maxPixels: 1e13
 });
 
 
-//////////////////////////////////////////////////////////////////////////////////////
-// Building Density
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Building Volume
+//////////////////////////////////////////////////////////////////////////////////////////////
 
-// https://gee-community-catalog.org/projects/msbuildings/
+// Load the built volume dataset for a specific year (e.g., 2020)
+var image = ee.Image("JRC/GHSL/P2023A/GHS_BUILT_V/2020");
+var builtVolume = image.select('built_volume_total').clip(roi);
 
-// Load the MS Buildings dataset for Bangladesh
-var msBuildings = ee.FeatureCollection('projects/sat-io/open-datasets/MSBuildings/Bangladesh');
-
-// Load the Dhaka City boundary feature collection
-var dhakaBoundary = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_City_Dissolved');
-
-// Clip the buildings data to the Dhaka City boundary
-var dhakaBuildings = msBuildings.filterBounds(dhakaBoundary);
-
-// Center the map on Dhaka and add the clipped buildings layer
-Map.centerObject(dhakaBoundary, 11);
-Map.addLayer(dhakaBuildings.style({fillColor: '00000000', color: 'FF5500'}), {}, 'Dhaka Buildings');
-
-// Add a new property 'presence' to each feature with a value of 1
-var dhakaBuildingsWithPresence = dhakaBuildings.map(function(feature) {
-  return feature.set('presence', 1);
+// Reduce resolution to 1000 m, calculating mean building volume in each cell
+var builtVolume_1000m = builtVolume.reduceResolution({
+  reducer: ee.Reducer.mean(),
+  bestEffort: true
+}).reproject({
+  crs: builtVolume.projection(),
+  scale: 1000
 });
 
-// Create a binary raster from the buildings feature collection
-var binaryBuildingRaster = dhakaBuildingsWithPresence
-  .reduceToImage({
-    properties: ['presence'], // Use the new property 'presence'
-    reducer: ee.Reducer.sum() // Sums the presence values to get a count per pixel
-  })
-  .gt(0) // Convert count to binary (1 for presence, 0 for absence)
-
-// Clip the binary raster to the Dhaka City boundary
-var clippedBinaryBuildingRaster = binaryBuildingRaster.clip(dhakaBoundary);
-print('Clipped Binary Building Raster:', clippedBinaryBuildingRaster);
-
-// // Add the binary raster layer to the map
-// Map.addLayer(clippedBinaryBuildingRaster, {min: 0, max: 1, palette: ['white', 'red']}, 'Binary Building Raster');
-
-// Resample to x-meter resolution
-var resampledRaster = clippedBinaryBuildingRaster.reproject({
-  crs: 'EPSG:4326', // Change to your desired projection if needed
-  scale: 5 // resolution in meter
-});
-
-// Define a kernel for summing 3 pixels around each pixel
-var kernel = ee.Kernel.square({radius: 3, units: 'pixels', normalize: false});
-
-// Calculate the sum of kernel pixels to generate building density
-var buildingDensity = resampledRaster.reduceNeighborhood({
-  reducer: ee.Reducer.sum(), // Sum values within the kernel
-  kernel: kernel
-}).rename('building_density');
-
-// Resample to 100-meter resolution
-var finalBuildingDensityRaster = buildingDensity.reproject({
-  crs: 'EPSG:4326',
-  scale: 100 // 100-meter resolution
-});
-
-// Add the building density raster to the map
-Map.addLayer(finalBuildingDensityRaster, {min: 0, max: 47, palette: ['white', 'red']}, 'Building Density Raster');
-
-// Calculate the minimum and maximum values of the finalBuildingDensityRaster
-var stats = finalBuildingDensityRaster.reduceRegion({
-  reducer: ee.Reducer.minMax(),
+// Calculate minimum and maximum values within the ROI
+var minValue = builtVolume_1000m.reduceRegion({
+  reducer: ee.Reducer.min(),
   geometry: roi,
-  scale: 100, // Match the resolution of the final raster
+  scale: 100, // Adjust based on your needs
+  maxPixels: 1e13
+}).get('built_volume_total');
+
+var maxValue = builtVolume_1000m.reduceRegion({
+  reducer: ee.Reducer.max(),
+  geometry: roi,
+  scale: 100,
+  maxPixels: 1e13
+}).get('built_volume_total');
+
+// Print the minimum and maximum values
+print('Minimum Built Volume [m³]:', minValue);
+print('Maximum Built Volume [m³]:', maxValue);
+
+// Define visualization parameters
+var visParams = {
+  min: 0.0,
+  max: 83000, // Adjust according to expected values in built_volume_total
+  palette: ['blue', 'green', 'yellow', 'red'],
+};
+
+// Set the map view
+Map.setCenter(90.3835, 23.7852, 12); // Center on your area of interest
+Map.addLayer(builtVolume_1000m, visParams, 'Total Built Volume [m³], 2020');
+
+
+
+// Export the built volume to Google Drive
+Export.image.toDrive({
+  image: builtVolume_1000m,
+  description: 'Built_Volume_2020_GHSL',
+  scale: 1000, // Set the scale according to your needs
+  region: roi, // Ensure roi is defined as your region of interest
+  folder: 'LST_MODIS', // Set the folder in your Google Drive for the export
+  fileNamePrefix: 'Built_Volume_2020_GHSL',
   maxPixels: 1e13
 });
 
-// Print the minimum and maximum values
-print('Minimum and Maximum Building Density:', stats);
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-// Correlation between LST and Building Density
-///////////////////////////////////////////////////////////////////////////////////////////////
+// Correlation
+//////////////////////////////////////////////////////////////////////////////////////////////
 
-// Add both LST and Building Density rasters as bands to sample together
-var lstAndDensity = LST_clipped.addBands(finalBuildingDensityRaster);
 
 // Sample points within the region of interest (roi)
-var samples = lstAndDensity.sample({
+var samples = LST_clipped.addBands(builtVolume_1000m).sample({
   region: roi,
-  scale: 100, // Set scale to match LST and building density resolution
-  numPixels: 1000, // Specify number of samples; adjust as needed for accuracy
+  scale: 1000, // Set scale to match LST and building volume resolution
+  numPixels: 10000, // Specify number of samples; adjust as needed for accuracy
   geometries: true // Include geometry for visualization
 });
 
-// Filter out samples where building density is less than a certain threshold if needed
-var filteredSamples = samples.filter(ee.Filter.gte('building_density', 1));
+// Filter out samples where the "built" value is less than 3
+var filteredSamples = samples.filter(ee.Filter.gte('built_volume_total', 113));
+////////////////////////////////////////////////////////////////////////////////////
+// Minimum building volume = 20 ft X 20 ft X 10 ft = 4000 ft3 = 113 m3
+///////////////////////////////////////////////////////////////////////////////////
 
 // Print filtered sample results
-print(filteredSamples, "Filtered Sampled LST and Building Density");
+print(filteredSamples, "Filtered Sampled LST and Building Volume");
 
-// Calculate Pearson's correlation between LST and building density
+// Convert to a feature collection and extract data for correlation calculation
 var sampleData = filteredSamples.reduceColumns({
   reducer: ee.Reducer.pearsonsCorrelation(),
-  // selectors: ['LST_Day_1km', 'building_density']
-  selectors: ['LST_Night_1km', 'building_density']
+  // selectors: ['LST_Day_1km', 'built_volume_total']
+  selectors: ['LST_Night_1km', 'built_volume_total']
 });
 
 // Print the correlation result
-print('Correlation between LST and building density:', sampleData.get('correlation'));
+print('Correlation between LST and building vloume (greater than 113 m3):', sampleData.get('correlation'));
 
-// Generate a scatter plot of Building Density (x-axis) vs. LST (y-axis)
-// var chart = ui.Chart.feature.byFeature(filteredSamples, 'building_density', 'LST_Day_1km')
-var chart = ui.Chart.feature.byFeature(filteredSamples, 'building_density', 'LST_Night_1km')
+// Generate a scatter plot of Building Volume (x-axis) vs. LST (y-axis)
+
+// var chart = ui.Chart.feature.byFeature(filteredSamples, 'built_volume_total', 'LST_Day_1km')
+var chart = ui.Chart.feature.byFeature(filteredSamples, 'built_volume_total', 'LST_Night_1km')
   .setChartType('ScatterChart')
   .setOptions({
-    title: 'Correlation between LST and Building Density',
-    hAxis: {title: 'Building Density'},
+    title: 'Correlation between LST and Building Volume',
+    hAxis: {title: 'Building Volume (m3)'},
     vAxis: {title: 'Land Surface Temperature (°C)'},
     pointSize: 3,
     trendlines: { 0: {showR2: true, visibleInLegend: true} }
@@ -213,3 +201,44 @@ var chart = ui.Chart.feature.byFeature(filteredSamples, 'building_density', 'LST
 // Display the chart in the Console
 print(chart);
 
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Pick Data from Grid Points
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Load the point shapefile
+var points = ee.FeatureCollection('projects/ee-sazidbs02/assets/Dhaka_1000m_grid_label_WGS84_clipped');
+
+// Sample the LST raster at the point locations
+var sampledLST = LST_clipped.sampleRegions({
+  collection: points,
+  scale: 1000, // Match the scale of LST_clipped
+  tileScale: 4,
+  geometries: true // Keep geometry for spatial reference
+});
+
+// Sample the building density raster at the point locations
+var sampledBuildingVolume = builtVolume_1000m.sampleRegions({
+  collection: points,
+  scale: 1000, // Match the scale of finalBuildingDensityRaster
+  tileScale: 4,
+  geometries: true // Keep geometry for spatial reference
+});
+
+// Export the sampled LST data to a CSV file in Google Drive
+Export.table.toDrive({
+  collection: sampledLST,
+  description: 'Sampled_LST_Dhaka',
+  fileFormat: 'CSV',
+  folder: 'LST_MODIS' // Set the folder in Google Drive
+});
+
+// Export the sampled building density data to a CSV file in Google Drive
+Export.table.toDrive({
+  collection: sampledBuildingVolume,
+  description: 'Sampled_Building_Volume_Dhaka',
+  fileFormat: 'CSV',
+  folder: 'LST_MODIS' // Set the folder in Google Drive
+});
