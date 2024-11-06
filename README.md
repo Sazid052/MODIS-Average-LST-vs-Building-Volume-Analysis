@@ -3,7 +3,7 @@
 ## Overview
 This project leverages Google Earth Engine (GEE) to analyze the relationship between urban development and nighttime land surface temperature (LST) in Dhaka, Bangladesh. Using MODIS LST data and GHSL building volume data, the analysis investigates how building density influences urban heat patterns.
 
-![002102](https://github.com/user-attachments/assets/40e7f3a9-e6f6-4d20-8f76-95e1fdacefa3)
+![002103](https://github.com/user-attachments/assets/fe678a25-3099-46a0-b0e7-db9557248b42)
 
 
 ## Key Features
