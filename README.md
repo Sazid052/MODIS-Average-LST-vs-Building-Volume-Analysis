@@ -1,4 +1,4 @@
-# MODIS Land Surface Temperature (LST) and Building Volume Analysis in Dhaka
+# MODIS Average LST vs Building Volume Analysis
 
 ## Overview
 This project leverages Google Earth Engine (GEE) to analyze the relationship between urban development and nighttime land surface temperature (LST) in Dhaka, Bangladesh. Using MODIS LST data and GHSL building volume data, the analysis investigates how building density influences urban heat patterns.
