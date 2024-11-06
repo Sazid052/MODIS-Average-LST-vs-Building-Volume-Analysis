@@ -47,7 +47,7 @@ This project leverages Google Earth Engine (GEE) to analyze the relationship bet
 - **Region and Points**: Ensure to update the `roi` (region of interest) and `points` (grid points) variables to your desired shapefiles to match your study area.
 
 ## Resources
-- [MODIS LST Data]([MODIS/061/MOD11A1](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD11A1))
+- [MODIS LST Data]([MODIS/061/MOD11A1](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD11A1)
 - [GHSL Built Volume Data](https://developers.google.com/earth-engine/datasets/catalog/JRC_GHSL_P2023A_GHS_BUILT_V)
 
 This project serves as a template for urban heat analysis and can be adapted for other regions or datasets. Feel free to modify and extend the code to support your research.
