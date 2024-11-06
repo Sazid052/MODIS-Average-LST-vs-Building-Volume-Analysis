@@ -1,96 +1,51 @@
-# MODIS Land Surface Temperature (LST) and Building Density Analysis for Dhaka City
-
-This project uses *Google Earth Engine (GEE)* to analyze *MODIS Land Surface Temperature (LST)* data and building density in Dhaka City. The script focuses on understanding the spatial and temporal distribution of LST and its correlation with urban building density.
+# MODIS Land Surface Temperature (LST) and Building Volume Analysis in Dhaka
 
 ## Overview
-
-The script performs several key tasks:
-- Imports and visualizes *MODIS LST data* for the nighttime, converting it from Kelvin to Celsius.
-- Computes and visualizes *building density* using the Microsoft Building dataset.
-- Analyzes the *correlation between LST and building density* using statistical methods and visualizations.
+This project leverages Google Earth Engine (GEE) to analyze the relationship between urban development and nighttime land surface temperature (LST) in Dhaka, Bangladesh. Using MODIS LST data and GHSL building volume data, the analysis investigates how building density influences urban heat patterns.
 
 ## Key Features
-
-1. **Study Area Definition**:
-   - Defines key locations and regions of interest (ROIs) within Dhaka City, including various pre-defined areas such as the Dhaka City boundary and surrounding areas.
-   - Option to switch between Dhaka BMD and Mymensingh BMD points.
-
-2. **MODIS LST Analysis**:
-   - Imports *MODIS Terra LST* data, focusing on nighttime temperatures in March 2018.
-   - Converts LST from Kelvin to Celsius and clips the data to the specified ROI.
-   - Computes and prints the minimum, maximum, and average LST values.
-
-3. **Building Density Analysis**:
-   - Uses the *Microsoft Buildings* dataset to extract building footprints within Dhaka City.
-   - Computes a binary raster for building presence and calculates building density using a square kernel.
-   - Resamples the raster to a 100-meter resolution and visualizes the building density.
-
-4. **Correlation Analysis**:
-   - Samples both LST and building density data to calculate Pearson's correlation.
-   - Generates a scatter plot showing the relationship between LST and building density, including a trendline with R² values.
+- **LST Analysis**: Import and process MODIS Terra LST data for nighttime, focusing on March 2018. Convert the data from Kelvin to Celsius and visualize using a color palette.
+- **Building Volume Analysis**: Use JRC’s GHSL Built Volume dataset (2020) to quantify urban density and clip data to the region of interest (ROI).
+- **Correlation Calculation**: Sample both LST and building volume data within the ROI and compute the Pearson correlation coefficient. Visualize this relationship using a scatter plot.
+- **Grid Sampling**: Extract LST and building volume data at 1000 m grid points and export the results for further analysis.
+- **Data Export**: Save processed images and sampled data to Google Drive in both GeoTIFF and CSV formats.
 
 ## Requirements
-
-- *Google Earth Engine Account*: This code must be run in the [Google Earth Engine Code Editor](https://code.earthengine.google.com/).
+- **Google Earth Engine Account**: You need a GEE account to run and modify the scripts.
+- **Google Drive**: Data exports are directed to Google Drive, so make sure your account has sufficient storage space.
+- **GEE Assets**: Custom assets such as the ROI shapefile and grid point shapefile need to be uploaded to your GEE account.
 
 ## Usage Instructions
-
-1. **Setup**:
-   - Import the script into your Google Earth Engine Code Editor.
-   - Ensure that the *Dhaka City boundary* and *Microsoft Buildings dataset* are correctly referenced.
-
-2. **Modify the Region of Interest (ROI)**:
-   - The `roi` variable is set to a specific region in Dhaka City by default. To analyze a different region, change the `roi` variable to the appropriate `FeatureCollection` asset.
-   - *Note*: Make sure that the selected `roi` is suitable for your analysis and that you have uploaded the necessary assets to your GEE account.
-
-3. **Adjust Parameters**:
-   - Modify the ROI to suit your area of interest. Available options include `Dhaka Core`, `Dhaka Surroundings`, `Dhaka City Buffer`, and various blocks.
-   - To switch between day and night LST data, change the `.select()` method accordingly.
-
-4. **Run the Analysis**:
-   - Visualize the LST and building density on the map.
-   - Export the clipped LST image to Google Drive for further analysis.
-   - View the minimum, maximum, and average LST values in the Console.
+1. **Setup**: Open the Google Earth Engine Code Editor and paste the script provided in the repository.
+2. **Select Region**: Modify the `roi` and `points` variables to choose your desired region of interest and the grid points shapefile. These default to specific assets for Dhaka City but should be updated to match your analysis needs.
+3. **Run the Script**:
+   - The script will process MODIS LST and GHSL building volume data.
+   - It will calculate minimum, maximum, and mean values for both datasets and print these in the GEE Console.
+4. **Export Data**:
+   - LST and building volume images are exported to Google Drive as GeoTIFFs.
+   - Sampled LST and building volume values are exported as CSV files to Google Drive.
 
 ## Outputs
-
-1. **Map Visualization**:
-   - LST and building density data are visualized with custom color palettes.
-   - Dhaka buildings are highlighted on the map.
-
-2. **Statistical Analysis**:
-   - Minimum, maximum, and average LST values are printed for the ROI.
-   - The building density raster is clipped and analyzed.
-
-3. **Correlation Analysis**:
-   - Pearson's correlation between LST and building density is calculated and displayed.
-   - A scatter plot with a trendline is generated to show the relationship between LST and building density.
-
-## Export
-
-- The LST image is exported to your Google Drive with a specified description and folder name.
-- Modify the `Export.image.toDrive()` parameters as needed, such as `scale`, `region`, and `fileNamePrefix`.
-
-## Visualization Parameters
-
-### LST Visualization
-- **Bands**: `LST_Night_1km`
-- **Min**: 20°C, **Max**: 50°C
-- **Palette**: Gradient from green (cooler) to red (warmer)
-
-### Building Density Visualization
-- **Resolution**: 100-meter
-- **Palette**: White (low density) to red (high density)
+- **Visualizations**:
+  - Nighttime LST map with a color palette.
+  - Building volume map showing urban density variations.
+  - Scatter plot depicting the correlation between LST and building volume.
+- **Statistics**:
+  - Minimum, maximum, and mean values for both LST and building volume.
+  - Pearson correlation coefficient to quantify the relationship.
+- **Exported Data**:
+  - **GeoTIFFs**: Clipped LST and building volume images.
+  - **CSV Files**: Sampled data from grid points for external analysis.
 
 ## Notes
-
-- Ensure the *MODIS LST dataset* is appropriately filtered for the desired time range and region.
-- The *Microsoft Buildings dataset* should cover the complete area of interest for accurate density analysis.
-- You may need to adjust the `scale` parameter for sampling and exporting data based on your analysis requirements.
+- **Adjustable Parameters**: Customize filters, time ranges, and scales in the script to suit your analysis. You can easily switch between daytime and nighttime LST or modify the building volume resolution.
+- **Filtering Threshold**: Building volume values below 113 m³ are excluded from the correlation analysis. This threshold corresponds to a minimum built area of 20 ft × 20 ft × 10 ft.
+- **Visualization Options**: Modify the color palette and visualization parameters as needed for better data representation.
+- **Region and Points**: Ensure to update the `roi` (region of interest) and `points` (grid points) variables to your desired shapefiles to match your study area.
 
 ## Resources
+- **MODIS LST Data**: [NASA MODIS](https://modis.gsfc.nasa.gov/)
+- **GHSL Built Volume Data**: [JRC GHSL Project](https://ghsl.jrc.ec.europa.eu/)
+- **Google Earth Engine Documentation**: [GEE Developers Guide](https://developers.google.com/earth-engine)
 
-- [MODIS Land Surface Temperature (LST) Data](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD11A1)
-- [Microsoft Building Footprints](https://gee-community-catalog.org/projects/msbuildings/)
-
-Feel free to modify the code and parameters to suit your research needs. If you encounter any issues, consult the Google Earth Engine community or relevant documentation.
+This project serves as a template for urban heat analysis and can be adapted for other regions or datasets. Feel free to modify and extend the code to support your research.
